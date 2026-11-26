@@ -489,7 +489,10 @@ function registrarExtracto(ext) {
       if (!sd || sd.final == null) continue;
       const fecha = sd.fecha || ext.hasta, mes = mesDeFecha(fecha);
       const [kS, kF] = campoSaldo(mon);
-      guardarRegistro('meses', { ...datosMes(mes), id: mes, [kS]: redondear(sd.final), [kF]: fecha });
+      // No se reemplaza un saldo más reciente del mismo período (por ejemplo, al importar después un resumen anterior).
+      const actual = datosMes(mes);
+      if (tieneValor(actual[kS]) && actual[kF] && actual[kF] > fecha) continue;
+      guardarRegistro('meses', { ...actual, id: mes, [kS]: redondear(sd.final), [kF]: fecha });
     }
   }
   return res;

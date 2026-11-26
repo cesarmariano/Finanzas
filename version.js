@@ -5,8 +5,9 @@
    - CORRECCIÓN: corrección de errores.
    Al publicar cambios: aumentar el número y agregar la entrada al principio de NOVEDADES.
    También lo usa sw.js para que cada dispositivo descargue la versión nueva. */
-self.FIN_VERSION = '1.10.1';
+self.FIN_VERSION = '1.10.2';
 self.FIN_NOVEDADES = [
+  { v: '1.10.2', fecha: '2026-11-26', cambios: ['Resumen bancario: al importar un resumen anterior ya no se reemplaza un saldo del banco más reciente.'] },
   { v: '1.10.1', fecha: '2026-11-26', cambios: ['Privacidad: el código ya no incluye nombres, tarjetas ni cuentas; los titulares y los conceptos se configuran en Ajustes y quedan sólo en los datos de cada usuario.'] },
   { v: '1.10.0', fecha: '2026-11-25', cambios: [
     'Titular de cada consumo: en las tarjetas de crédito se toma de las secciones "Consumos de ..." del resumen; en el banco, de la tarjeta de débito con que se hizo la compra.',
