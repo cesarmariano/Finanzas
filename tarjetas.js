@@ -509,7 +509,7 @@ function renderResumen(id, volver, borrador, lineasPDF) {
         } else if (!confirm('¿Guardarlo como un resumen adicional?')) return;
       }
       aprenderReglas(r.items);
-      guardarRegistro('resumenes', aGuardar);
+      guardarRegistro('resumenes', tomarPagoSinResumen(aGuardar));
       save(); toast('Resumen guardado.');
       mesTarjetas = r.mes; filtroItems = 'todos';
       volver();

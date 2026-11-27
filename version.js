@@ -5,8 +5,13 @@
    - CORRECCIÓN: corrección de errores.
    Al publicar cambios: aumentar el número y agregar la entrada al principio de NOVEDADES.
    También lo usa sw.js para que cada dispositivo descargue la versión nueva. */
-self.FIN_VERSION = '1.10.2';
+self.FIN_VERSION = '1.11.0';
 self.FIN_NOVEDADES = [
+  { v: '1.11.0', fecha: '2026-11-27', cambios: [
+    'Resumen bancario: un pago de tarjeta cuyo resumen no está cargado se registra igual como gasto ("Tarjeta sin itemizar"); al cargar después ese resumen, lo reemplaza.',
+    'Transferencias recibidas con el CUIT pegado al nombre: se identifican (por ejemplo, transferencias propias).',
+    'Las reglas recordadas sólo se aplican al mismo tipo de movimiento: una regla de un crédito ya no se usa en un débito.'
+  ] },
   { v: '1.10.2', fecha: '2026-11-26', cambios: ['Resumen bancario: al importar un resumen anterior ya no se reemplaza un saldo del banco más reciente.'] },
   { v: '1.10.1', fecha: '2026-11-26', cambios: ['Privacidad: el código ya no incluye nombres, tarjetas ni cuentas; los titulares y los conceptos se configuran en Ajustes y quedan sólo en los datos de cada usuario.'] },
   { v: '1.10.0', fecha: '2026-11-25', cambios: [

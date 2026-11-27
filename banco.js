@@ -78,9 +78,9 @@ function interpretarExtracto(lineas, opciones = {}) {
     if (modo === 'recibidas' || modo === 'enviadas') {
       const imp = (texto.match(/\$\s*(-?[\d.]*\d,\d{2})/) || [])[1];
       const m = modo === 'recibidas'
-        ? texto.match(/^(\d{1,2})\/(\d{1,2})\s+\S+\s+(\d{8,12})\s+(.*?)\s+(?:TR\.|VARIOS)/i)
+        ? texto.match(/^(\d{1,2})\/(\d{1,2})\s+\S+\s+(\d{8,13})\s*([^\d\s].*?)?\s+(?:TR\.|VARIOS)/i)
         : texto.match(/^(\d{1,2})\/(\d{1,2})\s+(\d{8,12})\s+(.*?)\s*\b0{6,}\s+VARIOS\s*(.*?)\s*\$/i);
-      if (m && imp) (modo === 'recibidas' ? recibidas : enviadas).push({ fecha: fechaDe(m[1], m[2], '', anio), cuit: m[3], nombre: m[4].trim(),
+      if (m && imp) (modo === 'recibidas' ? recibidas : enviadas).push({ fecha: fechaDe(m[1], m[2], '', anio), cuit: m[3].replace(/^00(?=\d{11}$)/, ''), nombre: (m[4] || '').trim(),
         referencia: modo === 'enviadas' ? (m[5] || '').replace(/^TR\..*/i, '').trim() : '', monto: Math.abs(parseMonto(imp)) });
       continue;
     }
@@ -214,10 +214,16 @@ const reglaBanco = m => (buscar('reglas', 'banco:' + claveMov(m)) || {}).categor
      'no' (no es gasto: transferencia propia, ahorro, compra de dólares) o '' (sin asignar). */
 const RE_NO_GASTO = /compra ?venta mon|mon\.? ?extranjera|plazo fijo|\bfci\b|suscripci[oó]n|rescate|inversi[oó]n/i;
 const RE_TRANSFERENCIA = /transferencia|\btransf\b|\btr\.? ?ne\b|debin|\bcoe\b|\bcvu\b|\bcbu\b/i;
+function reglaCompatible(v, m) {
+  if (v === 'no' || v.startsWith('cat:')) return true;
+  if (v === 'tarjeta') return m.tipo === 'debito';
+  const c = buscar('conceptos', v);
+  return !!c && c.tipo === (m.tipo === 'credito' ? 'ingreso' : 'egreso');
+}
 const catValida = c => 'cat:' + (db.config.categorias.includes(c) ? c : 'Consumo');
 function conceptoSugerido(m) {
   const regla = reglaBanco(m);
-  if (regla) return regla;
+  if (regla && reglaCompatible(regla, m)) return regla;
   if (m.propia) return 'no'; // transferencia entre los titulares de la cuenta
   const d = m.descripcion;
   if (m.tipo === 'credito') {
@@ -445,6 +451,14 @@ function registrarExtracto(ext) {
         .sort((a, b) => (a.pagado - b.pagado) || Math.abs(diasEntre(a.vencimiento || m.fecha, m.fecha)) - Math.abs(diasEntre(b.vencimiento || m.fecha, m.fecha)));
       const r = candidatos[0] || resumenesMes(mes).filter(x => !x.pagado).sort((a, b) => Math.abs(pagoResumen(a, moneda) - m.monto) - Math.abs(pagoResumen(b, moneda) - m.monto))[0];
       if (r) { guardarRegistro('resumenes', { ...r, pagado: true, fechaPago: m.fecha, mes }); res.tarjetas++; }
+      else {
+        // Cuando se cargue ese resumen, este movimiento se reemplaza por él (ver tomarPagoSinResumen).
+        if (!buscar('conceptos', 'egr-otros')) guardarRegistro('conceptos', { ...CONCEPTOS_BASE.find(c => c.id === 'egr-otros') });
+        guardarRegistro('movimientos', { id: uid(), mes, conceptoId: 'egr-otros', tipo: 'egreso', descripcion: m.descripcion + ' (resumen no cargado)',
+          categoria: 'Tarjeta sin itemizar', monto: m.monto, moneda, fecha: m.fecha, estado: 'realizado', ref, origen: 'banco', pagoTarjeta: true,
+          notas: 'Pago de tarjeta tomado del resumen del banco. Al importar el resumen de esa tarjeta, este renglón se reemplaza por sus consumos.' });
+        res.tarjetas++;
+      }
       continue;
     }
     if (m.asignado.startsWith('cat:')) {
@@ -496,6 +510,22 @@ function registrarExtracto(ext) {
     }
   }
   return res;
+}
+
+/* Al guardar un resumen de tarjeta: si su pago ya figura como "pago de tarjeta sin resumen" tomado del banco,
+   ese movimiento se borra y el resumen queda pagado en esa fecha (así no se cuenta dos veces). Devuelve el resumen actualizado. */
+function tomarPagoSinResumen(r) {
+  for (const mon of MONEDAS) {
+    const pago = pagoResumen(r, mon);
+    if (!pago) continue;
+    const x = vigentes('movimientos').find(m => m.pagoTarjeta && (m.moneda || 'ARS') === mon && Math.abs(num(m.monto) - pago) < 1 &&
+      Math.abs(diasEntre(r.vencimiento || m.fecha, m.fecha)) <= 45);
+    if (x) {
+      borrarRegistro('movimientos', x.id);
+      r = { ...r, pagado: true, fechaPago: x.fecha, mes: mesDeFecha(x.fecha) };
+    }
+  }
+  return r;
 }
 
 /* Versión 1.5: las reglas guardadas antes registraban "No registrar" para cada débito (era la opción por defecto)
